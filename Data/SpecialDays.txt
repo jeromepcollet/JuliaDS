@@ -1,4 +1,4 @@
-Date	ejp	fete
+Date	Curtailment	Holidays
 01/01/2003	0	Jour_de_l_an
 21/04/2003	0	Lundi_de_Paques
 01/05/2003	0	Fete_du_travail
