@@ -1,25 +1,11 @@
-# using DelimitedFiles
 using DataFrames
 using CSV
 using Dates
 using Pipe
-using TableView
 using Interpolations
 using StatsBase
 using GLM
-using Plots
-using Gadfly
 using CategoricalArrays
-
-#=
-stack
-transform
-dates
-interpolation
-join
-group_by
-glm, avec interactions
-=#
 
 tempcol =
   @pipe (CSV.File(open(read, "Data\\Temperature.txt")) |> DataFrame) |>
@@ -36,7 +22,6 @@ itp = LinearInterpolation(datetime2unix.(tempcol.Datim), tempcol.temp,
 calendar =
   @pipe (CSV.File(open(read, "Data\\SpecialDays.txt")) |> DataFrame) |>
   transform!(_, :Date => (x-> Date.(x, dateformat"dd/mm/yyyy")) => :Date)
-# DataFramesMeta, Chain, Lazy, Pipe, voire Query
 
 loadcol =
   @pipe (CSV.File(open(read, "Data\\Load_2003.txt")) |> DataFrame) |>
@@ -76,22 +61,9 @@ pourmodel = @pipe leftjoin(normaldays, calendar, on = :Date)|>
   transform(_, :temp => (x -> max.(x .- 18, 0)) => :ttc)|>
   sort(_, :Datim)
 
-#=
-Gadfly.plot(pourmodel, x = :Datim, y = :a1, Geom.line)
-Gadfly.plot(pourmodel, x = :Datim, y = :b1, Geom.line)
-Gadfly.plot(pourmodel, x = :Datim, y = :a2, Geom.line)
-Gadfly.plot(pourmodel, x = :Datim, y = :b2, Geom.line)
-Gadfly.plot(pourmodel, x = :temp, y = :tth, Geom.line)
-Gadfly.plot(pourmodel, x = :temp_mean, y = :tsmth, Geom.line)
-Gadfly.plot(pourmodel, x = :temp, y = :ttc, Geom.line)
-Gadfly.plot(pourmodel, x = :temp_mean, y = :tsmtc, Geom.line)
-Gadfly.plot(pourmodel, x = :Datim, y = :Curtailment, Geom.line)
- =#
-
 sum(pourmodel.Curtailment)
 sum(calendar.Curtailment)
 
-# showtable(pourmodel)
 # https://github.com/JuliaStats/GLM.jl/issues/426
 mod = lm(@formula(load ~
     type*h + h*DST + type*DST + Curtailment*h +
