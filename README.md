@@ -37,7 +37,7 @@ There is obviously a strong influence of day-type and hour. There is also an inf
 
 Another important variable is the temperature, since 30% of households in France use electric heating. A simple modelling is to use a linear spline: constant slope up to approximately 18°C, and then a slope equal to 0. The same is done for the cooling. Furthermore, it is useful to use a smoothed temperature jointly to the raw temperature.
 
-An important feature, in 2003, was the use by EDF (frenc electric utility) of load curtailment signals.
+An important feature, in 2003, was the use by EDF (french electric utility) of load curtailment signals.
 
 ## The data
 
@@ -55,8 +55,8 @@ We use:
 * `transform` of package `DataFrames` to create new variables, for example a datetime variable, after stacking the load and temperature data.
 * `interpolation`of package `Interpolations`, to interpolate the temperature.
 * `join` of package `DataFrames` to join all variables. For temperature and load, a simple binding of the dataframes would be enough, since they have the same time-step. For the information about special days, we join daily information with half-hourly information, a proper join is compulsory.
-* `group_by` of package `DataFrames` is useful to compute a smoothed temperature: we use a daily averaged emperature.
-* `lm`of package `glm`, is used to ultimately model the data we built. An important feature of this function is the modelling of interactions : `tth*h` means that the coefficient of the continous variable `tth` (the temperature, thresholded at 18°C) depends of the value of the categorical variable `h`, which is the hour.
+* `group_by` of package `DataFrames` to compute a smoothed temperature, approximated with a daily averaged emperature.
+* `lm`of package `glm`, to ultimately model the data we built. An important feature of this function is the modelling of interactions : `tth*h` means that the coefficient of the continous variable `tth` (the temperature, thresholded at 18°C) depends of the value of the categorical variable `h`, which is the hour.
 
 Results:
 * the `lm` function causes some issues, since the model is very ill-conditioned see https://github.com/JuliaStats/GLM.jl/issues/426.
