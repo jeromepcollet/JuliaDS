@@ -1,13 +1,15 @@
 # Brief presentation of Julia
 
-Core Idea: Multiple Dispatch + Type Stability => Speed + Readability ; developed in  [Why Does Julia Work So Well?](https://ucidatascienceinitiative.github.io/IntroToJulia/Html/WhyJulia)
+## Core choices
+
+Quoted from   [Why Does Julia Work So Well?](https://ucidatascienceinitiative.github.io/IntroToJulia/Html/WhyJulia): The core design decision, **type-stability through specialization via multiple-dispatch** is what allows Julia to be very easy for a compiler to make into efficient code, but also allow the code to be very concise and "look like a scripting language". This will lead to some very clear performance gains.
 
 Other key choice : metaprogramming. Like Lisp, Julia represents its own code as a data structure of the language itself. Since code is represented by objects that can be created and manipulated from within the language, it is possible for a program to transform and generate its own code
 
 ## Main consequences of Julia's efficiency
 
 ### Solves the two languages problem
-Due to Julia speed, it is it is no longer useful to write the compuational core of a package in Fortran or C. So, a large proportion of Julia packages are written in Julia.
+Due to Julia speed, it is it is no longer useful to write the compuational core of a package in Fortran or C. So, a large proportion of Julia packages are written entirely in Julia.
 
 Therefore, the growth of the Julia ecosystem is much faster than others.
 
@@ -51,11 +53,11 @@ We use:
 
 * `stack` of package `DataFrames` to put in one column the load and temperature data.
 * `transform` of package `DataFrames` to create new variables, for example a datetime variable, after stacking the load and temperature data.
-* `interpolation`of package `Interpolations`, to interpolate the temperature
+* `interpolation`of package `Interpolations`, to interpolate the temperature.
 * `join` of package `DataFrames` to join all variables. For temperature and load, a simple binding of the dataframes would be enough, since they have the same time-step. For the information about special days, we join daily information with half-hourly information, a proper join is compulsory.
-* group_by` of package `DataFrames` is useful to compute a smoothed temperature: we use a daily averaged emperature.
+* `group_by` of package `DataFrames` is useful to compute a smoothed temperature: we use a daily averaged emperature.
 * `lm`of package `glm`, is used to ultimately model the data we built. An important feature of this function is the modelling of interactions : `tth*h` means that the coefficient of the continous variable `tth` (the temperature, thresholded at 18°C) depends of the value of the categorical variable `h`, which is the hour.
 
 Results:
 * the `lm` function causes some issues, since the model is very ill-conditioned see https://github.com/JuliaStats/GLM.jl/issues/426.
-* The root mean sqaure error of the model is around 1600 MW, which is twice the RMSE of professional models. The main part of the work to improve this model is the careful processing of special days: we did not take account of days before and after special days, of bridges, etc. Once this processing is done, the remain is fine tuning of temperature representation, etc.
+* The root mean square error of the model is around 1600 MW, which is twice the RMSE of professional models. The main part of the work to improve this model is the careful processing of special days: we did not take account of days before and after special days, of bridges, August and Christmas periods, etc. Once this processing is done, the remain is fine tuning of temperature representation, etc.
