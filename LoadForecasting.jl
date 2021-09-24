@@ -41,14 +41,12 @@ normaldays = @pipe rightjoin(tempcol, loadcol, on = :Datim)|>
   transform(_, :Datim => (x -> Dates.Date.(x)) => :Date)|>
   transform(groupby(_, :Date), :temp => mean)
 
-# traitement vilain des dates
-# pb sur le calendrier, surtout les Curtailment
 pourmodel = @pipe leftjoin(normaldays, calendar, on = :Date)|>
   transform(_, :Curtailment => (x -> ifelse.(ismissing.(x), 0, x)) => :Curtailment)|>
   transform(_, [:Holidays,:Datim] => ((x,y) -> categorical(ifelse.(ismissing.(x), Dates.dayofweek.(y), 8))) => :type)|>
   transform(_, :Date => (x -> ifelse.((x .> Date(2003, 3, 26)) .& (x .< Date(2003, 10, 26)), 1, 0)) => :DST)|>
   transform(_, :Datim => (x -> categorical(2 * Dates.hour.(x) + Dates.minute.(x) / 30)) => :h)|>
-  transform(_, :Datim => (x -> 2 * pi * Dates.datetime2epochms.(x) / (365.25 * 86400 * 1000)) => :posyear)|>
+  transform(_, :Datim => (x -> 2 * pi * Dates.datetime2julian.(x) / (365.25)) => :posyear)|>
   transform(_, :posyear => (x -> cos.(x)) => :a1)|>
   transform(_, :posyear => (x -> sin.(x)) => :b1)|>
   transform(_, :posyear => (x -> cos.(2 * x)) => :a2)|>
