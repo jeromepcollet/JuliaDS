@@ -1,3 +1,5 @@
+The main feature of the example we present here is it includes many usual data-processing steps, in ONE work. Furthermore, this work is realistic : it is the forecasting of the French electric load, using load data, weather data, and calendar data.
+
 # Brief presentation of Julia
 
 ## Core choices
