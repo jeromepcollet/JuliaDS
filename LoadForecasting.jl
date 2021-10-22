@@ -6,6 +6,10 @@ using Interpolations
 using StatsBase
 using GLM
 using CategoricalArrays
+using Gadfly
+using TableView
+using Cairo
+using Fontconfig
 
 tempcol =
   @pipe (CSV.File(open(read, "Data\\Temperature.txt")) |> DataFrame) |>
@@ -41,12 +45,20 @@ normaldays = @pipe rightjoin(tempcol, loadcol, on = :Datim)|>
   transform(_, :Datim => (x -> Dates.Date.(x)) => :Date)|>
   transform(groupby(_, :Date), :temp => mean)
 
-pourmodel = @pipe leftjoin(normaldays, calendar, on = :Date)|>
+formodel0 = @pipe leftjoin(normaldays, calendar, on = :Date)|>
   transform(_, :Curtailment => (x -> ifelse.(ismissing.(x), 0, x)) => :Curtailment)|>
   transform(_, [:Holidays,:Datim] => ((x,y) -> categorical(ifelse.(ismissing.(x), Dates.dayofweek.(y), 8))) => :type)|>
   transform(_, :Date => (x -> ifelse.((x .> Date(2003, 3, 26)) .& (x .< Date(2003, 10, 26)), 1, 0)) => :DST)|>
-  transform(_, :Datim => (x -> categorical(2 * Dates.hour.(x) + Dates.minute.(x) / 30)) => :h)|>
-  transform(_, :Datim => (x -> 2 * pi * Dates.datetime2julian.(x) / (365.25)) => :posyear)|>
+  transform(_, :Datim => (x -> categorical(Dates.hour.(x) + Dates.minute.(x) / 60)) => :h)|>
+  transform(_, :Datim => (x -> 2 * pi * Dates.datetime2julian.(x) / (365.25)) => :posyear)
+
+elbow = @pipe formodel0 |>
+  subset(_, :h => ByRow(x -> x == 20)) |>
+  subset(_, :type => ByRow(x -> x in [1, 2, 3, 4, 5]))|>
+  plot(_, x = :temp, y = :load)
+draw(PNG("elbow.png"), elbow)
+
+formodel = @pipe formodel0 |>
   transform(_, :posyear => (x -> cos.(x)) => :a1)|>
   transform(_, :posyear => (x -> sin.(x)) => :b1)|>
   transform(_, :posyear => (x -> cos.(2 * x)) => :a2)|>
@@ -59,22 +71,43 @@ pourmodel = @pipe leftjoin(normaldays, calendar, on = :Date)|>
   transform(_, :temp => (x -> max.(x .- 18, 0)) => :ttc)|>
   sort(_, :Datim)
 
-sum(pourmodel.Curtailment)
-sum(calendar.Curtailment)
-
 # https://github.com/JuliaStats/GLM.jl/issues/426
-mod = lm(@formula(load ~
+lmod = lm(@formula(load ~
     type*h + h*DST + type*DST + Curtailment*h +
     a1*h*DST + a2*h + b1*h*DST + b2*h +
     tth*h + tsmth*h +
     tsmtc*h + posyear),
-    pourmodel, dropcollinear=true)
-sqrt(deviance(mod)/dof_residual(mod))
-mod = lm(@formula(load ~
+    formodel, dropcollinear=true)
+sqrt(deviance(lmod)/dof_residual(lmod))
+lmod = lm(@formula(load ~
     type*h + h*DST + type*DST + Curtailment*h +
     a1*h*DST + a2*h + b1*h*DST + b2*h +
     tth*h + tsmth*h +
     tsmtc*h + posyear
     + tsmth*posyear + a3*h + b3*h),
-    pourmodel, dropcollinear=false)
-sqrt(deviance(mod)/dof_residual(mod))
+    formodel, dropcollinear=false)
+sqrt(deviance(lmod)/dof_residual(lmod))
+
+forlightinfluence = @pipe formodel |>
+  transform(_, :Curtailment => (x -> 0) => :Curtailment)|>
+  transform(_, :type => (x -> 1) => :type)|>
+  transform(_, :tth => (x -> 0) => :tth)|>
+  transform(_, :tsmth => (x -> 0) => :tsmth)|>
+  transform(_, :tsmtc => (x -> 0) => :tsmtc) |>
+  subset(_, :h => ByRow(x -> (mod.(convert.(Float64, x), 6) == 0)))
+lightinfluence = @pipe hcat(DataFrame(pred = predict(lmod, forlightinfluence)),
+  forlightinfluence) |>
+  plot(_, x = :Date, y = :pred, color = :h,
+    Geom.line)
+draw(PNG("lightinfluence.png"), lightinfluence)
+
+residuals = predict(lmod, formodel) - formodel.load
+cumses = cumsum(sort(residuals.^2, rev=true))
+concentration = plot(x = (1:length(residuals)) ./ length(residuals),
+  y = cumses,
+  Geom.line)
+draw(PNG("concentration.png"), concentration)
+
+using StatsPlots
+resdens = density(residuals)
+savefig(resdens,"resdens.png")
