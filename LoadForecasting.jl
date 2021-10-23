@@ -53,9 +53,12 @@ formodel0 = @pipe leftjoin(normaldays, calendar, on = :Date)|>
   transform(_, :Datim => (x -> 2 * pi * Dates.datetime2julian.(x) / (365.25)) => :posyear)
 
 elbow = @pipe formodel0 |>
-  subset(_, :h => ByRow(x -> x == 20)) |>
+  subset(_, :h => ByRow(x -> x == 12)) |>
   subset(_, :type => ByRow(x -> x in [1, 2, 3, 4, 5]))|>
-  plot(_, x = :temp, y = :load)
+  transform(_, :load => (x -> (x / 1000)) => :load)|>
+  plot(_, x = :temp, y = :load,
+    Guide.ylabel("Load at noon, normal day (GW)"),
+    Guide.xlabel("Temperature (°C)"))
 draw(PNG("elbow.png"), elbow)
 
 formodel = @pipe formodel0 |>
@@ -97,17 +100,21 @@ forlightinfluence = @pipe formodel |>
   subset(_, :h => ByRow(x -> (mod.(convert.(Float64, x), 6) == 0)))
 lightinfluence = @pipe hcat(DataFrame(pred = predict(lmod, forlightinfluence)),
   forlightinfluence) |>
+  transform(_, :pred => (x -> (x / 1000)) => :pred)|>
   plot(_, x = :Date, y = :pred, color = :h,
-    Geom.line)
+    Geom.line,
+    Guide.ylabel("Seasonal part of forecast (GW)"))
 draw(PNG("lightinfluence.png"), lightinfluence)
 
-residuals = predict(lmod, formodel) - formodel.load
+residuals = (predict(lmod, formodel) - formodel.load) ./ 1000
 cumses = cumsum(sort(residuals.^2, rev=true))
 concentration = plot(x = (1:length(residuals)) ./ length(residuals),
-  y = cumses,
-  Geom.line)
+  y = cumses ./ maximum(cumses),
+  Geom.line,
+  Guide.ylabel("Proportion of sum of squared residuals", orientation = :vertical),
+  Guide.xlabel("Proportion of residuals", orientation = :horizontal))
 draw(PNG("concentration.png"), concentration)
 
 using StatsPlots
-resdens = density(residuals)
+resdens = density(residuals, xlabel = "Residuals (GW)")
 savefig(resdens,"resdens.png")
